@@ -1,0 +1,41 @@
+{
+  "port": 8765,
+  "nativeBridge": {
+    "exePath": "native\\build\\tobii_native_bridge.exe",
+    "sdkDir": "",
+    "flipX": false,
+    "flipY": false,
+    "unitMode": "signed"
+  },
+  "launchTargets": {
+    "ghost": [
+      "%LOCALAPPDATA%\\TobiiGhost\\TobiiGhost.exe",
+      "%LOCALAPPDATA%\\TobiiGhost\\app-1.14.1\\TobiiGhost.exe",
+      "%PROGRAMFILES%\\Tobii\\Tobii Ghost\\TobiiGhost.exe",
+      "%PROGRAMFILES(X86)%\\Tobii\\Tobii Ghost\\TobiiGhost.exe"
+    ],
+    "gamehub": [
+      "%LOCALAPPDATA%\\TobiiGameHub\\current\\TobiiGameHub.exe"
+    ],
+    "eyexEngine": [
+      "%PROGRAMFILES%\\Tobii\\Tobii EyeX\\Tobii.EyeX.Engine.exe",
+      "%PROGRAMFILES%\\Tobii\\Tobii EyeX\\Tobii.Service.exe"
+    ],
+    "configuration": [
+      "%PROGRAMFILES%\\Tobii\\Tobii EyeX\\Tobii.Configuration.exe"
+    ],
+    "experience": [
+      "%LOCALAPPDATA%\\Programs\\Tobii\\Tobii Experience\\TobiiExperience.exe",
+      "%PROGRAMFILES%\\Tobii\\Tobii Experience\\TobiiExperience.exe",
+      "%PROGRAMFILES(X86)%\\Tobii\\Tobii Experience\\TobiiExperience.exe"
+    ]
+  },
+  "profiles": {
+    "demo@local": {
+      "displayName": "Demo User",
+      "tobiiProfileName": "Default",
+      "ghostPreset": "Default bubble",
+      "notes": "App-level mapping only. Real Tobii profile activation needs SDK support, vendor API, or a desktop automation helper."
+    }
+  }
+}

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tobii Eye Tracker 5 Bridge Demo</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="stage" aria-label="Gaze preview">
+        <canvas id="trail" width="1280" height="720"></canvas>
+        <div id="gazeDot" class="gaze-dot" aria-hidden="true"></div>
+        <div class="hud">
+          <div>
+            <span class="label">WebSocket</span>
+            <strong id="connection">Connecting</strong>
+          </div>
+          <div>
+            <span class="label">Source</span>
+            <strong id="source">-</strong>
+          </div>
+          <div>
+            <span class="label">Tracker</span>
+            <strong id="trackerState">-</strong>
+          </div>
+          <div>
+            <span class="label">Gaze</span>
+            <strong id="coords">-</strong>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <header>
+          <p class="eyebrow">Local bridge</p>
+          <h1>Tobii Eye Tracker 5 웹 연동 테스트</h1>
+        </header>
+
+        <div class="group">
+          <h2>Prototype</h2>
+          <div class="button-row">
+            <button type="button" onclick="location.href='/reading.html'">Reading</button>
+          </div>
+        </div>
+
+        <div class="group">
+          <h2>Program</h2>
+          <div class="button-row">
+            <button id="fullscreen">Fullscreen</button>
+            <button id="launchAll">전체 실행</button>
+            <button id="launchGhost">Ghost</button>
+            <button id="launchGameHub">Game Hub</button>
+            <button id="launchEngine">EyeX Engine</button>
+            <button id="launchConfiguration">Configuration</button>
+            <button id="launchExperience">Experience</button>
+          </div>
+          <pre id="launchLog" class="log">Ready</pre>
+        </div>
+
+        <div class="group">
+          <h2>Stream</h2>
+          <div class="button-row">
+            <button id="simulationMode">Simulation</button>
+            <button id="nativeMode">Native Tobii</button>
+            <button id="idleMode">Idle</button>
+          </div>
+          <p class="hint">실제 Tobii SDK를 붙일 때도 프론트는 같은 JSON 형식을 받으면 됩니다.</p>
+        </div>
+
+        <div class="group">
+          <h2>Login profile mapping</h2>
+          <label>
+            Web account
+            <input id="account" value="demo@local" autocomplete="username" />
+          </label>
+          <label>
+            Tobii profile name
+            <input id="profileName" value="Default" />
+          </label>
+          <div class="button-row">
+            <button id="saveProfile">저장</button>
+            <button id="loadProfile">불러오기</button>
+          </div>
+          <pre id="profileLog" class="log">Profile mapping is stored in this browser.</pre>
+        </div>
+
+        <div class="group">
+          <h2>Status</h2>
+          <pre id="status" class="log">Loading</pre>
+        </div>
+      </aside>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

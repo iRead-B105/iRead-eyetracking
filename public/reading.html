@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reading Gaze Prototype</title>
+    <link rel="stylesheet" href="/reading.css" />
+  </head>
+  <body>
+    <main class="reading-app">
+      <section class="reading-stage">
+        <header class="stage-header">
+          <div>
+            <p>Reading gaze prototype</p>
+            <h1>문장 읽기 추적</h1>
+          </div>
+          <div class="live-status">
+            <span id="socketState">WebSocket: -</span>
+            <span id="trackerState">Tracker: -</span>
+            <span id="currentWord">Word: -</span>
+          </div>
+        </header>
+
+        <section id="calibrationView" class="calibration-view">
+          <div id="calibrationSurface" class="calibration-surface">
+            <div class="calibration-copy">
+              <strong id="calibrationStatus">5점 보정을 시작하세요</strong>
+              <span id="calibrationProgress">0 / 5</span>
+            </div>
+            <div id="calibrationDot" class="calibration-dot" aria-hidden="true"></div>
+          </div>
+        </section>
+
+        <article id="readingText" class="reading-text is-hidden" aria-label="읽기 문장"></article>
+        <div id="gazeCursor" class="gaze-cursor" aria-hidden="true"></div>
+
+        <footer class="stage-footer">
+          <div>
+            <strong id="summaryLine">준비됨</strong>
+            <span id="sessionLine">세션 없음</span>
+            <span id="debugLine" class="debug-line">debug: -</span>
+          </div>
+          <div class="legend">
+            <span><b class="dot active"></b>현재 단어</span>
+            <span><b class="dot visited"></b>방문</span>
+            <span><b class="dot skipped"></b>미방문</span>
+          </div>
+        </footer>
+      </section>
+
+      <aside class="control-panel">
+        <section>
+          <h2>Tabs</h2>
+          <div class="tab-row">
+            <button id="calibrationTabButton" type="button">보정</button>
+            <button id="readingTabButton" type="button" disabled>문장읽기</button>
+          </div>
+          <span id="calibrationBadge" class="status-badge">5점 보정 필요</span>
+        </section>
+
+        <section>
+          <h2>5 Point Calibration</h2>
+          <button id="startFivePointButton" type="button">5점 보정 시작</button>
+          <button id="goReadingButton" type="button" disabled>문장읽기로 이동</button>
+        </section>
+
+        <section>
+          <h2>Session</h2>
+          <label>
+            Student ID
+            <input id="studentId" value="student-demo" />
+          </label>
+          <label>
+            Tobii profile
+            <input id="tobiiProfile" value="Default" />
+          </label>
+          <label>
+            Sentence
+            <textarea id="sentenceInput" rows="4">오늘은 작은 고양이가 창문 옆에 앉아서 따뜻한 햇빛을 바라보았습니다.</textarea>
+          </label>
+          <div class="button-row">
+            <button id="startButton" type="button">시작</button>
+            <button id="saveButton" type="button">저장</button>
+            <button id="fullscreenButton" type="button">전체화면</button>
+          </div>
+        </section>
+
+        <section>
+          <h2>Calibration</h2>
+          <label>
+            Coordinate source
+            <select id="coordSource">
+              <option value="screen" selected>screen / Ghost-like</option>
+              <option value="viewport">viewport normalized</option>
+            </select>
+          </label>
+          <label class="check-row">
+            <input id="flipX" type="checkbox" />
+            좌우 반전
+          </label>
+          <label class="check-row">
+            <input id="flipY" type="checkbox" />
+            상하 반전
+          </label>
+          <label class="check-row">
+            <input id="sequenceAssist" type="checkbox" />
+            읽기 순서 보정
+          </label>
+          <label>
+            Local target
+            <select id="calibrationTarget"></select>
+          </label>
+          <button id="calibrateButton" type="button">현재 시선을 선택 단어에 맞춤</button>
+          <label>
+            X offset <span id="offsetXLabel">0px</span>
+            <input id="offsetX" type="range" min="-900" max="900" value="0" />
+          </label>
+          <label>
+            Y offset <span id="offsetYLabel">0px</span>
+            <input id="offsetY" type="range" min="-700" max="700" value="0" />
+          </label>
+          <label>
+            Hit padding <span id="paddingLabel">28px</span>
+            <input id="hitPadding" type="range" min="8" max="70" value="28" />
+          </label>
+        </section>
+
+        <section>
+          <h2>Metrics</h2>
+          <div id="metricsTable" class="metrics-table"></div>
+        </section>
+      </aside>
+    </main>
+
+    <script src="/reading.js"></script>
+  </body>
+</html>
