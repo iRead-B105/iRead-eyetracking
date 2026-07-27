@@ -55,8 +55,6 @@ const els = {
 const API_ORIGIN = location.protocol.startsWith("http") && location.port === "8765"
   ? location.origin
   : "http://127.0.0.1:8765";
-const APP_VERSION = "1.0.2";
-const WEB_CALIBRATION_ENABLED = false;
 
 function apiUrl(path) {
   return new URL(path, API_ORIGIN).toString();
@@ -86,7 +84,7 @@ let lastPointWithoutOffset = null;
 let calibrationJob = null;
 let wordAnchors = new Map();
 let metricsActive = false;
-let activeTab = WEB_CALIBRATION_ENABLED ? "calibration" : "reading";
+let activeTab = "calibration";
 let fivePointJob = null;
 let fivePointModel = null;
 let writingModel = null;
@@ -95,8 +93,6 @@ let writingCurrentTarget = 0;
 let writingDwellStartedAt = null;
 let writingTraceProgress = 0;
 let readingSessionRequest = null;
-let headPoseBaseline = null;
-let lastHeadPoseDelta = null;
 
 const fivePointTargets = [
   { id: "center", label: "중앙", xRatio: 0.5, yRatio: 0.5 },
@@ -118,15 +114,12 @@ const ninePointTargets = [
 ];
 const fivePointDwellMs = 1050;
 const fivePointHitRadius = 320;
-const writingDwellMs = 480;
-const writingHitRadius = 66;
+const writingDwellMs = 520;
+const writingHitRadius = 42;
 const writingTraceRadius = 54;
 const writingTraceCompleteThreshold = 0.86;
 const writingTraceMaxJump = 0.22;
 const smoothingResetRejectCount = 5;
-const headRotationLimitDeg = 7.5;
-const headPositionLimit = 0.22;
-const headPositionComparableRange = 4;
 
 const hangulInitials = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
 const hangulMedials = ["ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ"];
@@ -187,8 +180,7 @@ const jamoStrokeTemplates = {
   "ㅣ": [[[50, 14], [50, 86]]]
 };
 
-initializeCalibrationMode();
-setActiveTab(WEB_CALIBRATION_ENABLED ? "calibration" : "reading");
+setActiveTab("calibration");
 renderSentence();
 renderWritingExercise();
 renderMetrics();
@@ -228,6 +220,12 @@ window.addEventListener("resize", () => {
 });
 
 async function startSession() {
+  if (!fivePointModel) {
+    setActiveTab("calibration");
+    els.summaryLine.textContent = "보정을 먼저 완료하세요";
+    return;
+  }
+
   const backendContext = getBackendContext();
   if (!backendContext) return;
 
@@ -242,8 +240,6 @@ async function startSession() {
   startedAt = performance.now();
   metricsActive = true;
   lastSampleAt = null;
-  headPoseBaseline = null;
-  lastHeadPoseDelta = null;
   els.sessionLine.textContent = "local session pending";
   els.summaryLine.textContent = "Reading";
   connectGazeSocket();
@@ -255,17 +251,19 @@ async function startSession() {
       studentId: backendContext.studentId,
       contentType: backendContext.contentType,
       contentId: backendContext.contentId,
-      calibrationStatus: WEB_CALIBRATION_ENABLED ? "SUCCESS" : "DISABLED",
+      calibrationStatus: "SUCCESS",
       textId: `reading-${Date.now()}`,
       text: els.sentenceInput.value.trim(),
       tobiiProfile: els.tobiiProfile.value.trim() || "Default",
       metadata: {
         prototype: "single-sentence-word-gaze",
-        appVersion: APP_VERSION,
-        webCalibrationEnabled: WEB_CALIBRATION_ENABLED,
         viewport: { width: window.innerWidth, height: window.innerHeight },
         hitPaddingPx: getHitPadding(),
-        fivePointCalibration: getWebCalibrationMetadata()
+        fivePointCalibration: {
+          createdAt: fivePointModel.createdAt,
+          pointCount: fivePointModel.points.length,
+          mode: fivePointModel.mode
+        }
       }
     })
   })
@@ -341,43 +339,6 @@ function getBackendContext() {
   };
 }
 
-function getWebCalibrationMetadata() {
-  if (!WEB_CALIBRATION_ENABLED) {
-    return {
-      enabled: false,
-      appVersion: APP_VERSION,
-      mode: "native-only"
-    };
-  }
-
-  if (!fivePointModel) return null;
-  return {
-    enabled: true,
-    createdAt: fivePointModel.createdAt,
-    pointCount: fivePointModel.points.length,
-    mode: fivePointModel.mode
-  };
-}
-
-function initializeCalibrationMode() {
-  if (WEB_CALIBRATION_ENABLED) return;
-
-  fivePointJob = null;
-  fivePointModel = null;
-  els.calibrationMode.disabled = true;
-  els.startFivePointButton.disabled = true;
-  els.calibrationTarget.disabled = true;
-  els.calibrateButton.disabled = true;
-  els.readingTabButton.disabled = false;
-  els.writingTabButton.disabled = false;
-  els.goReadingButton.disabled = false;
-  els.calibrationBadge.textContent = `v${APP_VERSION} 웹 보정 없음`;
-  els.calibrationBadge.classList.add("is-ready");
-  els.calibrationStatus.textContent = "웹 보정 없이 Tobii native 좌표로 진행합니다.";
-  els.calibrationProgress.textContent = "-";
-  els.calibrationDot.classList.add("is-idle");
-}
-
 function connectGazeSocket() {
   if (socket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(socket.readyState)) return;
 
@@ -407,16 +368,6 @@ function connectGazeSocket() {
 }
 
 async function startFivePointCalibration() {
-  if (!WEB_CALIBRATION_ENABLED) {
-    fivePointJob = null;
-    fivePointModel = null;
-    els.calibrationBadge.textContent = `v${APP_VERSION} 웹 보정 없음`;
-    els.calibrationBadge.classList.add("is-ready");
-    els.calibrationStatus.textContent = "웹 보정은 비활성화되어 있습니다. Tobii 정식 보정을 사용하세요.";
-    els.summaryLine.textContent = "Web calibration disabled; using native Tobii coordinates";
-    return;
-  }
-
   setActiveTab("calibration");
   metricsActive = false;
   fivePointModel = null;
@@ -666,11 +617,6 @@ function getCalibrationTargets() {
 }
 
 function resetCalibrationModel() {
-  if (!WEB_CALIBRATION_ENABLED) {
-    initializeCalibrationMode();
-    return;
-  }
-
   if (fivePointJob) return;
   fivePointModel = null;
   els.readingTabButton.disabled = true;
@@ -808,7 +754,7 @@ function averagePoints(points) {
 }
 
 function setActiveTab(tab) {
-  if (WEB_CALIBRATION_ENABLED && (tab === "reading" || tab === "writing") && !fivePointModel) {
+  if ((tab === "reading" || tab === "writing") && !fivePointModel) {
     tab = "calibration";
     els.summaryLine.textContent = "보정을 먼저 완료하세요";
   }
@@ -892,6 +838,12 @@ function renderWritingExercise(options = {}) {
 }
 
 async function startWritingExercise() {
+  if (!fivePointModel) {
+    setActiveTab("calibration");
+    els.summaryLine.textContent = "보정을 먼저 완료하세요";
+    return;
+  }
+
   setActiveTab("writing");
   writingActive = true;
   writingCurrentTarget = 0;
@@ -1271,12 +1223,6 @@ function consumeGaze(frame) {
     return;
   }
 
-  const headPoseState = updateHeadPoseState(frame);
-  if ((metricsActive || writingActive) && headPoseState?.unstable) {
-    rejectGazeFrame(headPoseState.reason, now);
-    return;
-  }
-
   const point = toClientPoint(frame);
   updateDebugLine(frame, point, null);
   if (fivePointJob) {
@@ -1374,81 +1320,6 @@ function isNoisyGazeFrame(frame) {
   );
 }
 
-function updateHeadPoseState(frame) {
-  const pose = getHeadPose(frame);
-  if (!pose) {
-    lastHeadPoseDelta = null;
-    return null;
-  }
-
-  if (!headPoseBaseline) {
-    headPoseBaseline = pose;
-    lastHeadPoseDelta = {
-      yaw: 0,
-      pitch: 0,
-      roll: 0,
-      x: 0,
-      y: 0,
-      z: 0,
-      unstable: false,
-      reason: "head-stable"
-    };
-    return lastHeadPoseDelta;
-  }
-
-  const delta = {
-    yaw: Math.abs(pose.yaw - headPoseBaseline.yaw),
-    pitch: Math.abs(pose.pitch - headPoseBaseline.pitch),
-    roll: Math.abs(pose.roll - headPoseBaseline.roll),
-    x: Number.isFinite(pose.x) && Number.isFinite(headPoseBaseline.x) ? Math.abs(pose.x - headPoseBaseline.x) : 0,
-    y: Number.isFinite(pose.y) && Number.isFinite(headPoseBaseline.y) ? Math.abs(pose.y - headPoseBaseline.y) : 0,
-    z: Number.isFinite(pose.z) && Number.isFinite(headPoseBaseline.z) ? Math.abs(pose.z - headPoseBaseline.z) : 0,
-    unstable: false,
-    reason: "head-stable"
-  };
-
-  const rotationMoved = (
-    delta.yaw > headRotationLimitDeg ||
-    delta.pitch > headRotationLimitDeg ||
-    delta.roll > headRotationLimitDeg
-  );
-  const positionMoved = hasComparableHeadPosition(pose, headPoseBaseline) && (
-    delta.x > headPositionLimit ||
-    delta.y > headPositionLimit ||
-    delta.z > headPositionLimit
-  );
-
-  delta.unstable = rotationMoved || positionMoved;
-  delta.reason = delta.unstable ? "head-moved" : "head-stable";
-  lastHeadPoseDelta = delta;
-  return delta;
-}
-
-function getHeadPose(frame) {
-  if (frame.headPoseValid === false) return null;
-  if (
-    !Number.isFinite(frame.headYawDeg) ||
-    !Number.isFinite(frame.headPitchDeg) ||
-    !Number.isFinite(frame.headRollDeg)
-  ) {
-    return null;
-  }
-
-  return {
-    yaw: Number(frame.headYawDeg),
-    pitch: Number(frame.headPitchDeg),
-    roll: Number(frame.headRollDeg),
-    x: Number.isFinite(frame.headX) ? Number(frame.headX) : null,
-    y: Number.isFinite(frame.headY) ? Number(frame.headY) : null,
-    z: Number.isFinite(frame.headZ) ? Number(frame.headZ) : null
-  };
-}
-
-function hasComparableHeadPosition(current, baseline) {
-  return [current.x, current.y, current.z, baseline.x, baseline.y, baseline.z]
-    .every((value) => Number.isFinite(value) && Math.abs(value) <= headPositionComparableRange);
-}
-
 function rejectGazeFrame(reason, now) {
   droppedFrames += 1;
   rejectedGazeStreak += 1;
@@ -1467,7 +1338,7 @@ function resetGazeStabilizer() {
 function toClientPoint(frame) {
   const rawPoint = toClientPointWithoutOffset(frame);
   lastPointWithoutOffset = rawPoint;
-  const point = WEB_CALIBRATION_ENABLED ? applyFivePointCalibration(rawPoint) : rawPoint;
+  const point = applyFivePointCalibration(rawPoint);
   return {
     x: point.x + Number(els.offsetX.value),
     y: point.y + Number(els.offsetY.value)
@@ -1613,29 +1484,15 @@ function updateDebugLine(frame, point, word) {
   const bounds = Number.isFinite(frame.trackingLeft) && Number.isFinite(frame.trackingRight)
     ? `track ${Math.round(frame.trackingLeft)},${Math.round(frame.trackingTop)}-${Math.round(frame.trackingRight)},${Math.round(frame.trackingBottom)}`
     : "track -";
-  const localCal = WEB_CALIBRATION_ENABLED
-    ? roundDebug(getLocalCalibrationWeight(lastPointWithoutOffset || point))
-    : "off";
-  const quality = `clamped ${frame.clamped === true ? "yes" : "no"} | localCal ${localCal}`;
-  const head = formatHeadDebug(frame);
+  const quality = `clamped ${frame.clamped === true ? "yes" : "no"} | localCal ${roundDebug(getLocalCalibrationWeight(lastPointWithoutOffset || point))}`;
   const selected = word ? word.text : "-";
   const nearestText = nearest ? `${nearest.word.text} ${Math.round(nearest.distance)}px` : "-";
 
-  els.debugLine.textContent = `${sdkRaw} | ${screen} | ${raw} | client ${Math.round(point.x)},${Math.round(point.y)} | hit ${selected} | near ${nearestText} | ${quality} | ${head} | ${bounds}`;
+  els.debugLine.textContent = `${sdkRaw} | ${screen} | ${raw} | client ${Math.round(point.x)},${Math.round(point.y)} | hit ${selected} | near ${nearestText} | ${quality} | ${bounds}`;
 }
 
 function roundDebug(value) {
   return Math.abs(value) < 10 ? Math.round(value * 1000) / 1000 : Math.round(value);
-}
-
-function formatHeadDebug(frame) {
-  const pose = getHeadPose(frame);
-  if (!pose) return "head -";
-
-  const current = `head r ${roundDebug(pose.yaw)},${roundDebug(pose.pitch)},${roundDebug(pose.roll)} p ${roundDebug(pose.x)},${roundDebug(pose.y)},${roundDebug(pose.z)}`;
-  if (!lastHeadPoseDelta) return current;
-
-  return `${current} d ${roundDebug(lastHeadPoseDelta.yaw)},${roundDebug(lastHeadPoseDelta.pitch)},${roundDebug(lastHeadPoseDelta.roll)} ${lastHeadPoseDelta.reason}`;
 }
 
 function getNearestWord(x, y) {
@@ -1885,8 +1742,6 @@ function resetTrackingState(options = {}) {
   rejectedGazeStreak = 0;
   startedAt = null;
   calibrationJob = null;
-  headPoseBaseline = null;
-  lastHeadPoseDelta = null;
   if (!options.keepAnchors) wordAnchors = new Map();
   resetWordMetrics();
   els.currentWord.textContent = "Word: -";
@@ -1935,11 +1790,6 @@ function renderCalibrationTargets() {
 }
 
 async function calibrateToSelectedWord() {
-  if (!WEB_CALIBRATION_ENABLED) {
-    els.summaryLine.textContent = "Word calibration disabled in v1.0.1";
-    return;
-  }
-
   const selectedIndex = Number(els.calibrationTarget.value);
   renderSentence({ preserveAnchors: true });
   els.calibrationTarget.value = String(selectedIndex);

@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from backend_gaze_client import BackendGazeClient
 from reading_storage import ReadingStorage
 from tobii_launcher import launch_target, resolve_launch_targets
 from tobii_sources import NativeProcessTracker, SimulatedTracker
@@ -46,6 +47,7 @@ app.add_middleware(
 tracker = SimulatedTracker()
 native_tracker = NativeProcessTracker(ROOT, config.get("nativeBridge", {}))
 reading_storage = ReadingStorage(DATA_DIR / "reading_sessions.sqlite3")
+backend_gaze_client = BackendGazeClient(config.get("backend", {}))
 stream_mode = "simulation"
 connected_clients: set[int] = set()
 
@@ -61,6 +63,7 @@ async def status() -> JSONResponse:
             "python": platform.python_version(),
             "launchTargets": resolve_launch_targets(config.get("launchTargets", {})),
             "nativeBridge": native_tracker.status(),
+            "backend": backend_gaze_client.status(),
             "profiles": config.get("profiles", {}),
         }
     )
@@ -102,7 +105,14 @@ async def launch(payload: dict[str, Any]) -> JSONResponse:
 
 @app.post("/api/reading/sessions")
 async def create_reading_session(payload: dict[str, Any]) -> JSONResponse:
-    return JSONResponse(reading_storage.create_session(payload))
+    session = reading_storage.create_session(payload)
+    backend_sync = await backend_gaze_client.start_session(payload)
+    session["backendSync"] = backend_sync
+    if backend_sync.get("ok"):
+        gaze_session_id = (backend_sync.get("response") or {}).get("gazeSessionId")
+        if gaze_session_id is not None:
+            session["gazeSessionId"] = gaze_session_id
+    return JSONResponse(session)
 
 
 @app.post("/api/reading/sessions/{session_id}/metrics")
@@ -110,6 +120,8 @@ async def save_reading_metrics(session_id: int, payload: dict[str, Any]) -> JSON
     result = reading_storage.add_metrics(session_id, payload)
     if not result.get("ok"):
         return JSONResponse(result, status_code=404)
+    gaze_session_id = payload.get("gazeSessionId") or payload.get("backendGazeSessionId")
+    result["backendSync"] = await backend_gaze_client.complete_session(gaze_session_id, payload)
     return JSONResponse(result)
 
 

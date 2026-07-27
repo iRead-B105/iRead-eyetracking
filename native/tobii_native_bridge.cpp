@@ -99,6 +99,24 @@ namespace
         bool Clamped;
     };
 
+    void WriteHeadPoseFields(std::ostream& stream, bool valid, const HeadPose& headPose)
+    {
+        stream << "\"headPoseValid\":" << (valid ? "true" : "false") << ",";
+        if (!valid)
+        {
+            return;
+        }
+
+        stream
+            << "\"headYawDeg\":" << headPose.Rotation.YawDegrees << ","
+            << "\"headPitchDeg\":" << headPose.Rotation.PitchDegrees << ","
+            << "\"headRollDeg\":" << headPose.Rotation.RollDegrees << ","
+            << "\"headX\":" << headPose.Position.X << ","
+            << "\"headY\":" << headPose.Position.Y << ","
+            << "\"headZ\":" << headPose.Position.Z << ","
+            << "\"headTimestampUs\":" << headPose.TimeStampMicroSeconds << ",";
+    }
+
     int RectWidth(const TgiRectangle& rect)
     {
         return rect.Right - rect.Left;
@@ -242,6 +260,8 @@ int main()
         GazePoint gazePoint;
         const bool valid = streams->GetLatestGazePoint(gazePoint);
         const bool presence = streams->IsPresent();
+        HeadPose headPose;
+        const bool headPoseValid = streams->GetLatestHeadPose(headPose);
 
         if (valid)
         {
@@ -275,6 +295,9 @@ int main()
                 << "\"clamped\":" << (normalized.Clamped ? "true" : "false") << ","
                 << "\"valid\":true,"
                 << "\"presence\":" << (presence ? "true" : "false") << ","
+                ;
+            WriteHeadPoseFields(std::cout, headPoseValid, headPose);
+            std::cout
                 << "\"trackerTimestampUs\":" << gazePoint.TimeStampMicroSeconds << ","
                 << "\"timestamp\":" << NowMs()
                 << "}" << std::endl;
@@ -296,6 +319,9 @@ int main()
                 << "\"trackingHeight\":" << screenHeight << ","
                 << "\"valid\":false,"
                 << "\"presence\":" << (presence ? "true" : "false") << ","
+                ;
+            WriteHeadPoseFields(std::cout, headPoseValid, headPose);
+            std::cout
                 << "\"timestamp\":" << NowMs()
                 << "}" << std::endl;
         }

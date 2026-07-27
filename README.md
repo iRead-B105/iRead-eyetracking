@@ -152,6 +152,31 @@ build_native_with_vs2022.bat
 
 현재 저장소는 프로토타입 검증을 위해 `data/reading_sessions.sqlite3`에 데이터를 저장합니다. `data/` 디렉터리는 Git에 커밋하지 않습니다.
 
+## Backend Gaze Sync
+
+`config.json`에서 backend sync를 켜면 로컬 저장과 함께 Spring Boot gaze API로도 전송합니다.
+
+```json
+"backend": {
+  "enabled": true,
+  "baseUrl": "http://localhost:8080",
+  "sessionCookie": "JSESSIONID=...",
+  "timeoutSeconds": 5
+}
+```
+
+The prototype maps local summary fields to the backend contract like this:
+
+| Local summary | Backend request field |
+| --- | --- |
+| `totalDwellMs` | `totalVisitedDuration` |
+| `totalVisitCount` | `totalVisitedCount` |
+| `totalRegressionCount` | `reverseReadCount` |
+| `totalDwellMs / visitedWords` | `avgVisitedDuration` |
+
+Session start uses `studentId`, `contentType`, `contentId`, and `calibrationStatus`.
+`contentId` is sent as `testId`, `trainingId`, or `storyId` according to `contentType`.
+
 ## iRead 병합 방향
 
 | 대상 | 병합 방식 |
