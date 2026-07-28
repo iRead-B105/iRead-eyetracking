@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend_gaze_client import BackendGazeClient
+from gaze_payloads import build_backend_payload_preview
 from reading_storage import ReadingStorage
 from tobii_launcher import launch_target, resolve_launch_targets
 from tobii_sources import NativeProcessTracker, SimulatedTracker
@@ -123,6 +124,10 @@ async def save_reading_metrics(session_id: int, payload: dict[str, Any]) -> JSON
     if not result.get("ok"):
         return JSONResponse(result, status_code=404)
     gaze_session_id = payload.get("gazeSessionId") or payload.get("backendGazeSessionId")
+    try:
+        result["payloadPreview"] = build_backend_payload_preview(gaze_session_id, payload)
+    except Exception as exc:
+        result["payloadPreview"] = {"ok": False, "error": str(exc)}
     result["backendSync"] = await backend_gaze_client.complete_session(gaze_session_id, payload)
     return JSONResponse(result)
 

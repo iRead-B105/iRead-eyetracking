@@ -177,6 +177,19 @@ The prototype maps local summary fields to the backend contract like this:
 Session start uses `studentId`, `contentType`, `contentId`, and `calibrationStatus`.
 `contentId` is sent as `testId`, `trainingId`, or `storyId` according to `contentType`.
 
+`gaze_payloads.py` centralizes the conversion from prototype metrics to the iRead backend contract:
+
+| Prototype data | Contract payload |
+| --- | --- |
+| session context | `POST /api/app/gaze/sessions` request |
+| reading summary | `POST /api/app/gaze/sessions/{gazeSessionId}/analysis-results` request |
+| session status/filter summary | `PATCH /api/app/gaze/sessions/{gazeSessionId}/end` request |
+| word gaze metrics | contract-shaped `wordAttempts` preview for frontend/backend alignment |
+
+When a reading session is saved, `/api/reading/sessions/{sessionId}/metrics` returns `payloadPreview`.
+The web mock also stores the latest preview in `localStorage` under `iread-gaze-payload-preview`.
+This is intended for API alignment and does not upload raw high-FPS gaze coordinates.
+
 ## iRead 병합 방향
 
 | 대상 | 병합 방식 |

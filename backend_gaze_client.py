@@ -6,6 +6,12 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+from gaze_payloads import (
+    build_analysis_results_request,
+    build_session_end_request,
+    build_session_start_request,
+)
+
 
 class BackendGazeClient:
     def __init__(self, config: dict[str, Any]) -> None:
@@ -26,24 +32,7 @@ class BackendGazeClient:
             return {"ok": False, "skipped": True, "reason": "Backend gaze sync is disabled."}
 
         try:
-            student_id = _required_int(payload.get("studentId"), "studentId")
-            content_type = str(payload.get("contentType") or "TEST").upper()
-            content_id = _required_int(payload.get("contentId"), "contentId")
-            request = {
-                "studentId": student_id,
-                "contentType": content_type,
-                "calibrationStatus": str(payload.get("calibrationStatus") or "SUCCESS").upper(),
-            }
-
-            if content_type == "TEST":
-                request["testId"] = content_id
-            elif content_type == "TRAINING":
-                request["trainingId"] = content_id
-            elif content_type == "STORY":
-                request["storyId"] = content_id
-            else:
-                raise ValueError(f"Unsupported contentType: {content_type}")
-
+            request = build_session_start_request(payload)
             response = await asyncio.to_thread(self._request, "POST", "/api/app/gaze/sessions", request)
             return {"ok": True, "request": request, "response": response}
         except Exception as exc:
@@ -55,41 +44,8 @@ class BackendGazeClient:
 
         try:
             session_id = _required_int(gaze_session_id, "gazeSessionId")
-            student_id = _required_int(payload.get("studentId"), "studentId")
-            summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
-            words = payload.get("words") if isinstance(payload.get("words"), list) else []
-
-            total_visited_duration = _summary_int(
-                summary,
-                "totalDwellMs",
-                sum(_safe_int(word.get("dwellMs")) for word in words if isinstance(word, dict)),
-            )
-            total_visited_count = _summary_int(
-                summary,
-                "totalVisitCount",
-                sum(_safe_int(word.get("visitCount")) for word in words if isinstance(word, dict)),
-            )
-            reverse_read_count = _summary_int(
-                summary,
-                "totalRegressionCount",
-                sum(_safe_int(word.get("regressionCount")) for word in words if isinstance(word, dict)),
-            )
-            visited_words = _summary_int(
-                summary,
-                "visitedWords",
-                sum(1 for word in words if isinstance(word, dict) and _safe_int(word.get("visitCount")) > 0),
-            )
-            avg_visited_duration = (
-                round(total_visited_duration / visited_words) if visited_words > 0 else 0
-            )
-
-            analysis_request = {
-                "studentId": student_id,
-                "totalVisitedDuration": total_visited_duration,
-                "totalVisitedCount": total_visited_count,
-                "reverseReadCount": reverse_read_count,
-                "avgVisitedDuration": avg_visited_duration,
-            }
+            analysis_request = build_analysis_results_request(payload)
+            end_request = build_session_end_request(payload)
             analysis_response = await asyncio.to_thread(
                 self._request,
                 "POST",
@@ -100,12 +56,13 @@ class BackendGazeClient:
                 self._request,
                 "PATCH",
                 f"/api/app/gaze/sessions/{session_id}/end",
-                {"studentId": student_id, "status": "COMPLETED"},
+                end_request,
             )
             return {
                 "ok": True,
                 "analysisRequest": analysis_request,
                 "analysisResponse": analysis_response,
+                "endRequest": end_request,
                 "endResponse": end_response,
             }
         except Exception as exc:
@@ -146,15 +103,3 @@ def _required_int(value: Any, field: str) -> int:
     if value in (None, ""):
         raise ValueError(f"{field} is required for backend gaze sync.")
     return int(value)
-
-
-def _safe_int(value: Any) -> int:
-    try:
-        return int(value or 0)
-    except (TypeError, ValueError):
-        return 0
-
-
-def _summary_int(summary: dict[str, Any], key: str, fallback: int) -> int:
-    value = summary.get(key)
-    return _safe_int(value) if value is not None else int(fallback)

@@ -314,6 +314,7 @@ async function saveSession() {
     })
   });
   const result = await response.json();
+  rememberBackendPayloadPreview(sessionId, result.payloadPreview);
   const backendText = result.backendSync?.ok
     ? " / backend synced"
     : result.backendSync?.skipped
@@ -321,6 +322,21 @@ async function saveSession() {
       : " / backend sync failed";
   els.summaryLine.textContent = `Saved: ${result.savedWordCount} words${backendText}`;
   renderMetrics();
+}
+
+function rememberBackendPayloadPreview(localSessionId, payloadPreview) {
+  if (!payloadPreview) return;
+  const key = "iread-gaze-payload-preview";
+  const record = {
+    localSessionId,
+    savedAt: new Date().toISOString(),
+    payloadPreview
+  };
+  try {
+    localStorage.setItem(key, JSON.stringify(record, null, 2));
+  } catch {
+    // Preview export is only a local debugging aid.
+  }
 }
 
 function getBackendContext() {
