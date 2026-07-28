@@ -160,12 +160,13 @@ async def gaze_socket(websocket: WebSocket) -> None:
             if stream_mode == "native":
                 frame = await native_tracker.next_frame()
                 if frame is None:
-                    await asyncio.sleep(0.05)
+                    await asyncio.sleep(0.01)
                     continue
             else:
                 frame = tracker.next_frame()
             await websocket.send_json(frame)
-            await asyncio.sleep(1 / 60)
+            if stream_mode != "native":
+                await asyncio.sleep(1 / 60)
     except WebSocketDisconnect:
         pass
     finally:
