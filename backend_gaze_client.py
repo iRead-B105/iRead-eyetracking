@@ -18,13 +18,17 @@ class BackendGazeClient:
         self.enabled = bool(config.get("enabled", False))
         self.base_url = str(config.get("baseUrl") or "http://localhost:8080").rstrip("/")
         self.timeout = float(config.get("timeoutSeconds") or 5)
-        self.session_cookie = str(config.get("sessionCookie") or "").strip()
+        # 백엔드는 Authorization: Bearer(JWT)로 인증한다. 학생 access token을 주입한다.
+        # sessionCookie 키는 하위 호환용으로 남둔다. 다중 학생 지원은 P5-E에서 다룬다.
+        self.access_token = str(
+            config.get("accessToken") or config.get("sessionCookie") or ""
+        ).strip()
 
     def status(self) -> dict[str, Any]:
         return {
             "enabled": self.enabled,
             "baseUrl": self.base_url,
-            "authenticated": bool(self.session_cookie),
+            "authenticated": bool(self.access_token),
         }
 
     async def start_session(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -46,24 +50,26 @@ class BackendGazeClient:
             session_id = _required_int(gaze_session_id, "gazeSessionId")
             analysis_request = build_analysis_results_request(payload)
             end_request = build_session_end_request(payload)
-            analysis_response = await asyncio.to_thread(
-                self._request,
-                "POST",
-                f"/api/app/gaze/sessions/{session_id}/analysis-results",
-                analysis_request,
-            )
+            # 백엔드 saveAnalysisResult는 세션이 COMPLETED 상태일 때만 허용한다.
+            # 따라서 end(PATCH)로 먼저 COMPLETED로 만든 뒤 analysis-results(POST)를 보낸다.
             end_response = await asyncio.to_thread(
                 self._request,
                 "PATCH",
                 f"/api/app/gaze/sessions/{session_id}/end",
                 end_request,
             )
+            analysis_response = await asyncio.to_thread(
+                self._request,
+                "POST",
+                f"/api/app/gaze/sessions/{session_id}/analysis-results",
+                analysis_request,
+            )
             return {
                 "ok": True,
-                "analysisRequest": analysis_request,
-                "analysisResponse": analysis_response,
                 "endRequest": end_request,
                 "endResponse": end_response,
+                "analysisRequest": analysis_request,
+                "analysisResponse": analysis_response,
             }
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
@@ -77,7 +83,7 @@ class BackendGazeClient:
             headers={
                 "Content-Type": "application/json",
                 "Accept": "application/json",
-                **self._cookie_header(),
+                **self._auth_header(),
             },
         )
         try:
@@ -90,13 +96,10 @@ class BackendGazeClient:
         except urllib.error.URLError as exc:
             raise RuntimeError(f"Backend request failed: {exc.reason}") from exc
 
-    def _cookie_header(self) -> dict[str, str]:
-        if not self.session_cookie:
+    def _auth_header(self) -> dict[str, str]:
+        if not self.access_token:
             return {}
-        cookie = self.session_cookie
-        if "=" not in cookie:
-            cookie = f"JSESSIONID={cookie}"
-        return {"Cookie": cookie}
+        return {"Authorization": f"Bearer {self.access_token}"}
 
 
 def _required_int(value: Any, field: str) -> int:

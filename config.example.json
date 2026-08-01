@@ -10,7 +10,7 @@
   "backend": {
     "enabled": false,
     "baseUrl": "http://localhost:8080",
-    "sessionCookie": "",
+    "accessToken": "",
     "timeoutSeconds": 5
   },
   "launchTargets": {

@@ -147,6 +147,16 @@ def build_session_data(payload: dict[str, Any]) -> dict[str, Any]:
         data["readingTimeMs"] = safe_int(summary.get("readingTimeMs"))
     if summary.get("samplingHz") is not None:
         data["samplingHz"] = safe_int(summary.get("samplingHz"))
+    # 백엔드 hasCompletedData는 data.samples/words를 요구한다.
+    # explicit data에 없으면 payload 최상위 words/samples로 채운다.
+    if "words" not in data:
+        words = as_list(payload.get("words"))
+        if words:
+            data["words"] = words
+    if "samples" not in data:
+        samples = payload.get("samples")
+        if isinstance(samples, list):
+            data["samples"] = samples
     return data
 
 
