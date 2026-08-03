@@ -4,6 +4,9 @@ import math
 import asyncio
 import json
 import os
+import queue
+import subprocess
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -75,14 +78,15 @@ class NativeProcessTracker:
     def __init__(self, root: Path, config: dict[str, Any]) -> None:
         self.root = root
         self.config = config
-        self.process: asyncio.subprocess.Process | None = None
-        self.reader_task: asyncio.Task[None] | None = None
-        self.queue: asyncio.Queue[dict[str, object]] = asyncio.Queue(maxsize=4)
+        self.process: subprocess.Popen[str] | None = None
+        self.stdout_thread: threading.Thread | None = None
+        self.stderr_thread: threading.Thread | None = None
+        self.queue: queue.Queue[dict[str, object]] = queue.Queue(maxsize=4)
         self.last_error: str | None = None
         self.last_frame_at: int | None = None
 
     async def start(self) -> bool:
-        if self.process and self.process.returncode is None:
+        if self.process and self.process.poll() is None:
             return True
 
         exe_path = self._resolve_path(self.config.get("exePath", ""))
@@ -100,15 +104,26 @@ class NativeProcessTracker:
         if self.config.get("unitMode"):
             env["TOBII_BRIDGE_UNIT_MODE"] = str(self.config["unitMode"])
 
-        self.process = await asyncio.create_subprocess_exec(
-            str(exe_path),
-            cwd=str(exe_path.parent),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=env,
-        )
-        self.reader_task = asyncio.create_task(self._read_stdout())
-        asyncio.create_task(self._read_stderr())
+        try:
+            self.process = subprocess.Popen(
+                [str(exe_path)],
+                cwd=str(exe_path.parent),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                bufsize=1,
+            )
+        except OSError as error:
+            self.last_error = f"Failed to start native bridge: {error}"
+            return False
+
+        self.stdout_thread = threading.Thread(target=self._read_stdout, daemon=True)
+        self.stderr_thread = threading.Thread(target=self._read_stderr, daemon=True)
+        self.stdout_thread.start()
+        self.stderr_thread.start()
         self.last_error = None
         return True
 
@@ -117,8 +132,8 @@ class NativeProcessTracker:
             return None
 
         try:
-            frame = await asyncio.wait_for(self.queue.get(), timeout=0.25)
-        except asyncio.TimeoutError:
+            frame = await asyncio.to_thread(self.queue.get, True, 0.25)
+        except queue.Empty:
             return None
 
         self.last_frame_at = round(time.time() * 1000)
@@ -130,20 +145,21 @@ class NativeProcessTracker:
             "configured": bool(self.config.get("exePath")),
             "exePath": str(exe_path),
             "exists": exe_path.exists(),
-            "running": bool(self.process and self.process.returncode is None),
+            "running": bool(self.process and self.process.poll() is None),
             "lastFrameAt": self.last_frame_at,
             "lastError": self.last_error,
         }
 
-    async def _read_stdout(self) -> None:
-        assert self.process and self.process.stdout
-        while True:
-            line = await self.process.stdout.readline()
-            if not line:
-                break
+    def _read_stdout(self) -> None:
+        if not self.process or not self.process.stdout:
+            return
+
+        for line in self.process.stdout:
+            if not line.strip():
+                continue
 
             try:
-                payload = json.loads(line.decode("utf-8"))
+                payload = json.loads(line)
             except json.JSONDecodeError:
                 continue
 
@@ -153,17 +169,17 @@ class NativeProcessTracker:
             if self.queue.full():
                 try:
                     self.queue.get_nowait()
-                except asyncio.QueueEmpty:
+                except queue.Empty:
                     pass
-            await self.queue.put(payload)
+            self.queue.put(payload)
 
-    async def _read_stderr(self) -> None:
-        assert self.process and self.process.stderr
-        while True:
-            line = await self.process.stderr.readline()
-            if not line:
-                break
-            self.last_error = line.decode("utf-8", errors="replace").strip()
+    def _read_stderr(self) -> None:
+        if not self.process or not self.process.stderr:
+            return
+
+        for line in self.process.stderr:
+            if line.strip():
+                self.last_error = line.strip()
 
     def _resolve_path(self, value: str) -> Path:
         if not value:

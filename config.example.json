@@ -7,6 +7,12 @@
     "flipY": false,
     "unitMode": "signed"
   },
+  "backend": {
+    "enabled": false,
+    "baseUrl": "http://localhost:8080",
+    "accessToken": "",
+    "timeoutSeconds": 5
+  },
   "launchTargets": {
     "ghost": [
       "%LOCALAPPDATA%\\TobiiGhost\\TobiiGhost.exe",
@@ -23,6 +29,9 @@
     ],
     "configuration": [
       "%PROGRAMFILES%\\Tobii\\Tobii EyeX\\Tobii.Configuration.exe"
+    ],
+    "portal": [
+      "%PROGRAMFILES%\\WindowsApps\\TobiiAB.TobiiEyeTrackingPortal_*\\Tobii.EyeTracking.Portal.WPF\\Tobii.EyeTracking.Portal.WPF.exe"
     ],
     "experience": [
       "%LOCALAPPDATA%\\Programs\\Tobii\\Tobii Experience\\TobiiExperience.exe",

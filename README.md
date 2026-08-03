@@ -152,6 +152,44 @@ build_native_with_vs2022.bat
 
 현재 저장소는 프로토타입 검증을 위해 `data/reading_sessions.sqlite3`에 데이터를 저장합니다. `data/` 디렉터리는 Git에 커밋하지 않습니다.
 
+## Backend Gaze Sync
+
+`config.json`에서 backend sync를 켜면 로컬 저장과 함께 Spring Boot gaze API로도 전송합니다.
+
+```json
+"backend": {
+  "enabled": true,
+  "baseUrl": "http://localhost:8080",
+  "sessionCookie": "JSESSIONID=...",
+  "timeoutSeconds": 5
+}
+```
+
+The prototype maps local summary fields to the backend contract like this:
+
+| Local summary | Backend request field |
+| --- | --- |
+| `totalDwellMs` | `totalVisitedDuration` |
+| `totalVisitCount` | `totalVisitedCount` |
+| `totalRegressionCount` | `reverseReadCount` |
+| `totalDwellMs / visitedWords` | `avgVisitedDuration` |
+
+Session start uses `studentId`, `contentType`, `contentId`, and `calibrationStatus`.
+`contentId` is sent as `testId`, `trainingId`, or `storyId` according to `contentType`.
+
+`gaze_payloads.py` centralizes the conversion from prototype metrics to the iRead backend contract:
+
+| Prototype data | Contract payload |
+| --- | --- |
+| session context | `POST /api/app/gaze/sessions` request |
+| reading summary | `POST /api/app/gaze/sessions/{gazeSessionId}/analysis-results` request |
+| session status/filter summary | `PATCH /api/app/gaze/sessions/{gazeSessionId}/end` request |
+| word gaze metrics | contract-shaped `wordAttempts` preview for frontend/backend alignment |
+
+When a reading session is saved, `/api/reading/sessions/{sessionId}/metrics` returns `payloadPreview`.
+The web mock also stores the latest preview in `localStorage` under `iread-gaze-payload-preview`.
+This is intended for API alignment and does not upload raw high-FPS gaze coordinates.
+
 ## iRead 병합 방향
 
 | 대상 | 병합 방식 |

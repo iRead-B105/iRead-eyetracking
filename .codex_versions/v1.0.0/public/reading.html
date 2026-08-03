@@ -24,8 +24,8 @@
         <section id="calibrationView" class="calibration-view">
           <div id="calibrationSurface" class="calibration-surface">
             <div class="calibration-copy">
-              <strong id="calibrationStatus">웹 보정 없이 진행합니다</strong>
-              <span id="calibrationProgress">v1.0.1</span>
+              <strong id="calibrationStatus">5점 보정을 시작하세요</strong>
+              <span id="calibrationProgress">0 / 5</span>
             </div>
             <div id="calibrationDot" class="calibration-dot" aria-hidden="true"></div>
           </div>
@@ -59,24 +59,24 @@
           <h2>Tabs</h2>
           <div class="tab-row">
             <button id="calibrationTabButton" type="button">보정</button>
-            <button id="readingTabButton" type="button">문장읽기</button>
-            <button id="writingTabButton" type="button">Writing</button>
+            <button id="readingTabButton" type="button" disabled>문장읽기</button>
+            <button id="writingTabButton" type="button" disabled>Writing</button>
           </div>
-          <span id="calibrationBadge" class="status-badge">v1.0.1 웹 보정 없음</span>
+          <span id="calibrationBadge" class="status-badge">5점 보정 필요</span>
         </section>
 
         <section>
           <h2>Eye Calibration</h2>
           <label>
             Calibration mode
-            <select id="calibrationMode" disabled>
+            <select id="calibrationMode">
               <option value="5" selected>5 point</option>
               <option value="9">9 point</option>
             </select>
           </label>
-          <button id="startFivePointButton" type="button" disabled>웹 보정 비활성화</button>
+          <button id="startFivePointButton" type="button">보정 시작</button>
           <button id="openTobiiCalibrationButton" type="button">Tobii 정식 보정 열기</button>
-          <button id="goReadingButton" type="button">문장읽기로 이동</button>
+          <button id="goReadingButton" type="button" disabled>문장읽기로 이동</button>
         </section>
 
         <section>
@@ -148,9 +148,9 @@
           </label>
           <label>
             Local target
-            <select id="calibrationTarget" disabled></select>
+            <select id="calibrationTarget"></select>
           </label>
-          <button id="calibrateButton" type="button" disabled>단어 보정 비활성화</button>
+          <button id="calibrateButton" type="button">현재 시선을 선택 단어에 맞춤</button>
           <label>
             X offset <span id="offsetXLabel">0px</span>
             <input id="offsetX" type="range" min="-900" max="900" value="0" />
