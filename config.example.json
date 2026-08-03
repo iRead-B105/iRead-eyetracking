@@ -3,6 +3,7 @@
   "nativeBridge": {
     "exePath": "native\\build\\tobii_native_bridge.exe",
     "sdkDir": "",
+    "autoStartOnClient": true,
     "flipX": false,
     "flipY": false,
     "unitMode": "signed"

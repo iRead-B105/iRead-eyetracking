@@ -99,7 +99,21 @@ run_server.bat
 http://127.0.0.1:8765/reading.html
 ```
 
-기본 실행 모드는 simulation입니다. 실제 Tobii Eye Tracker 5를 사용하려면 native bridge를 먼저 빌드한 뒤 화면에서 native mode를 선택합니다.
+기본 실행 모드는 simulation입니다. 다만 `config.json`의 `nativeBridge.autoStartOnClient`가 `true`이면 아동 앱 또는 프로토타입 화면이 `/gaze` WebSocket에 연결될 때 서버가 native bridge 실행을 먼저 시도합니다.
+
+Tobii Eye Tracker 5가 연결되어 있고 `native/build/tobii_native_bridge.exe`가 준비되어 있으면 자동으로 native mode로 전환됩니다. Tobii가 없거나 native bridge 실행에 실패하면 서버는 simulation 상태로 남고, 아동 앱은 기존처럼 마우스 포인터 기반 fallback으로 동작할 수 있습니다.
+
+브라우저 단독으로는 Tobii 기기나 native exe를 직접 실행할 수 없습니다. 따라서 실제 Tobii 사용에는 이 FastAPI 서버가 먼저 실행되어 있어야 하며, Electron으로 포팅할 경우에는 Electron 메인 프로세스에서 이 서버 또는 native helper를 함께 실행하는 구조로 자동화를 확장할 수 있습니다.
+
+자동 전환을 끄고 수동으로 native mode를 선택하려면 `config.json`에서 다음 값을 `false`로 바꿉니다.
+
+```json
+{
+  "nativeBridge": {
+    "autoStartOnClient": false
+  }
+}
+```
 
 ## Native Bridge 빌드
 

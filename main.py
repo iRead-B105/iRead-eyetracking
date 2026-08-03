@@ -55,6 +55,24 @@ stream_mode = "simulation"
 connected_clients: set[int] = set()
 
 
+def native_autostart_enabled() -> bool:
+    native_config = config.get("nativeBridge", {})
+    return bool(native_config.get("autoStartOnClient", True))
+
+
+async def try_enable_native_mode() -> bool:
+    global stream_mode
+    if stream_mode == "native":
+        return True
+    if not native_autostart_enabled():
+        return False
+    started = await native_tracker.start()
+    if not started:
+        return False
+    stream_mode = "native"
+    return True
+
+
 @app.get("/api/status")
 async def status() -> JSONResponse:
     return JSONResponse(
@@ -148,6 +166,7 @@ async def get_reading_session(session_id: int) -> JSONResponse:
 @app.websocket("/gaze")
 async def gaze_socket(websocket: WebSocket) -> None:
     await websocket.accept()
+    await try_enable_native_mode()
     client_id = id(websocket)
     connected_clients.add(client_id)
     await websocket.send_json(
