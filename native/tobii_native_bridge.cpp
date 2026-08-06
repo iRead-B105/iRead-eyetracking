@@ -295,6 +295,7 @@ int main()
                 << "\"clamped\":" << (normalized.Clamped ? "true" : "false") << ","
                 << "\"valid\":true,"
                 << "\"presence\":" << (presence ? "true" : "false") << ","
+                << "\"trackerConnected\":" << (tracker->IsConnected() ? "true" : "false") << ","
                 ;
             WriteHeadPoseFields(std::cout, headPoseValid, headPose);
             std::cout
@@ -319,6 +320,7 @@ int main()
                 << "\"trackingHeight\":" << screenHeight << ","
                 << "\"valid\":false,"
                 << "\"presence\":" << (presence ? "true" : "false") << ","
+                << "\"trackerConnected\":" << (tracker->IsConnected() ? "true" : "false") << ","
                 ;
             WriteHeadPoseFields(std::cout, headPoseValid, headPose);
             std::cout
