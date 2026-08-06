@@ -252,10 +252,23 @@ int main()
     };
 
     tracker->TrackRectangle(trackingRect);
+    int64_t lastTrackerScanMs = 0;
 
     while (g_running)
     {
         api->Update();
+
+        const int64_t nowMs = NowMs();
+        if (nowMs - lastTrackerScanMs >= 250)
+        {
+            tracker->UpdateTrackerInfos();
+            lastTrackerScanMs = nowMs;
+        }
+
+        TrackerInfo trackerInfo;
+        const bool trackerInfoAvailable = tracker->GetTrackerInfo(trackerInfo);
+        const bool trackerConnected = tracker->IsConnected()
+            && (!trackerInfoAvailable || trackerInfo.IsAttached);
 
         GazePoint gazePoint;
         const bool valid = streams->GetLatestGazePoint(gazePoint);
@@ -295,7 +308,7 @@ int main()
                 << "\"clamped\":" << (normalized.Clamped ? "true" : "false") << ","
                 << "\"valid\":true,"
                 << "\"presence\":" << (presence ? "true" : "false") << ","
-                << "\"trackerConnected\":" << (tracker->IsConnected() ? "true" : "false") << ","
+                << "\"trackerConnected\":" << (trackerConnected ? "true" : "false") << ","
                 ;
             WriteHeadPoseFields(std::cout, headPoseValid, headPose);
             std::cout
@@ -320,7 +333,7 @@ int main()
                 << "\"trackingHeight\":" << screenHeight << ","
                 << "\"valid\":false,"
                 << "\"presence\":" << (presence ? "true" : "false") << ","
-                << "\"trackerConnected\":" << (tracker->IsConnected() ? "true" : "false") << ","
+                << "\"trackerConnected\":" << (trackerConnected ? "true" : "false") << ","
                 ;
             WriteHeadPoseFields(std::cout, headPoseValid, headPose);
             std::cout
